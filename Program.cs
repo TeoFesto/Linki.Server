@@ -1,2 +1,8 @@
-﻿// See https://aka.ms/new-console-template for more information
-Console.WriteLine("Hello, World!");
+﻿using Linki.Server;
+using System;
+using System.Net.Sockets;
+using Linki.SharedResources;
+
+
+ServerObject server = new ServerObject();
+await server.ListenAsync();
