@@ -5,4 +5,5 @@ using Linki.SharedResources;
 
 
 ServerObject server = new ServerObject();
-await server.ListenAsync();
+server.ListenAsync();
+server.CheckClientObjectsConnectionAsync();
