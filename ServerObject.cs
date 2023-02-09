@@ -16,9 +16,9 @@ namespace Linki.Server
 {
     internal class ServerObject
     {
-        TcpListener clientConnectionListener = new TcpListener(8888);
-        List<ClientObject> clientConnections = new List<ClientObject>();
-        Dictionary<string, ClientObject> authorizedClients = new Dictionary<string, ClientObject>();
+        private TcpListener clientConnectionListener = new TcpListener(8888);
+        private List<ClientObject> clientConnections = new List<ClientObject>();
+        private Dictionary<string, ClientObject> authorizedClients = new Dictionary<string, ClientObject>();
         public async Task ListenAsync()
         {
             clientConnectionListener.Start();
@@ -30,10 +30,9 @@ namespace Linki.Server
                 {
                     Console.WriteLine("Ожидание подключения клиента...");
                     TcpClient tcpClient = await clientConnectionListener.AcceptTcpClientAsync();
-                    ClientObject clientObject = new ClientObject(tcpClient, this);
+                    Console.WriteLine($"Происходит подключение {tcpClient.Client.RemoteEndPoint.ToString()}. Обработка...");
+                    ClientObject clientObject = new ClientObject(this);
                     clientConnections.Add(clientObject);
-                    Console.WriteLine($"Подключение #{clientObject.connectionID} ({tcpClient.Client.RemoteEndPoint.ToString()}) подключился. Обработка...");
-                    Task.Run(clientObject.ProcessAsync);
                     IPEndPoint clientObjectIPEndPoint = clientObject.GetEndPoint();
                     ServerConnectionResponse serverConnectionQueryMessage = new ServerConnectionResponse(clientObjectIPEndPoint);
                     string responseQueryJson = QueryJsonConverter.SerializeQueryMessage(serverConnectionQueryMessage);
@@ -62,15 +61,17 @@ namespace Linki.Server
                     }
                     stopwatch.Stop();
 
-                    if (confirmMessage != confirm)
+                    if (confirmMessage == confirm)
+                    {
+                        clientObject.StartProcess();
+                        Console.WriteLine("Обработка клиента завершена. Ожидание следующего клиента...");
+                    }
+                    else
                     {
                         clientObject.Close();
                         clientConnections.Remove(clientObject);
                         throw new Exception($"Корректного подтверждение от клиента не пришло. Пришедшее сообщение: {confirmMessage}");
-
                     }
-                    else
-                        Console.WriteLine("Обработка клиента завершена. Ожидание следующего клиента...");
 
                 }
                 catch (Exception ex)
@@ -82,23 +83,26 @@ namespace Linki.Server
 
         public async Task CheckClientObjectsConnectionAsync()
         {
-            List<ClientObject> disconnectedConnections = new List<ClientObject>();
-            foreach(ClientObject connection in clientConnections)
+            while (true)
             {
-                if (!connection.IsConnectedToClient())
+                List<ClientObject> disconnectedConnections = new List<ClientObject>();
+                foreach (ClientObject connection in clientConnections)
                 {
-                    connection.Close();
-                    disconnectedConnections.Add(connection);
+                    if (!connection.IsConnectedToClient())
+                    {
+                        connection.Close();
+                        disconnectedConnections.Add(connection);
+                    }
                 }
-            }
 
-            foreach(ClientObject disconnection in disconnectedConnections)
-            {
-                clientConnections.Remove(disconnection);
-            }
+                foreach (ClientObject disconnection in disconnectedConnections)
+                {
+                    clientConnections.Remove(disconnection);
+                }
 
-            int waitSeconds = 60;
-            Thread.Sleep(waitSeconds * 1000);
+                int waitSeconds = 60;
+                Thread.Sleep(waitSeconds * 1000);
+            }
         }
     }
 }
