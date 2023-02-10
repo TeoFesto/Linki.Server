@@ -82,7 +82,7 @@ namespace Linki.Server
 
         private async Task ReceiveRequests()
         {
-            StringBuilder builder = new StringBuilder();
+            List<byte> bytes = new List<byte>();
             string jsonRequestQuery;
             Request request = new Request();
             while (true)
@@ -96,12 +96,12 @@ namespace Linki.Server
                         char c = (char)bufferByte[0];
                         if (c != '\n')
                         {
-                            builder.Append(c);
+                            bytes.Add(bufferByte[0]);
                         }
                         else
                         {
-                            jsonRequestQuery = builder.ToString();
-                            builder.Clear();
+                            jsonRequestQuery = Encoding.UTF8.GetString(bytes.ToArray());
+                            bytes.Clear();
                             request = (Request)QueryJsonConverter.DeserializeQuery(jsonRequestQuery);
                             requests.Enqueue(request);
                         }
@@ -124,6 +124,7 @@ namespace Linki.Server
                     Request request = requests.Dequeue();
                     if(request is SignUpRequest signUpRequest)
                     {
+                        bool isSingedUp;
                         string statusMessage = "";
 
                         string sqlExpression = "SELECT COUNT(Login) FROM Users WHERE Login = @login";
@@ -131,7 +132,9 @@ namespace Linki.Server
                         command.Parameters.Add(new SqlParameter("@login", signUpRequest.Login));
                         int loginCount = (int)(await command.ExecuteScalarAsync());
                         if (loginCount > 0)
+                        {
                             statusMessage += "- Логин уже занят\n";
+                        }
 
                         sqlExpression = "SELECT COUNT(Email) FROM Users WHERE Email = @email";
                         command = new SqlCommand(sqlExpression, databaseConnection);
@@ -143,7 +146,7 @@ namespace Linki.Server
                         SignUpResponse signUpResponse = new SignUpResponse();
                         if (statusMessage != "")
                         {
-                            signUpResponse.StatusMessage = statusMessage;
+                            isSingedUp = false;
                         }
                         else
                         {
@@ -158,8 +161,10 @@ namespace Linki.Server
                             // нет проверки на длину данных, ну да ладно
                             await command.ExecuteNonQueryAsync();
                             statusMessage = "Регистрация успешно завершена. Можете войти в аккаунт.";
-                            signUpResponse.StatusMessage = statusMessage;
+                            isSingedUp = true;
                         }
+                        signUpResponse.StatusMessage = statusMessage;
+                        signUpResponse.isSignedUp = isSingedUp;
                         responses.Enqueue(signUpResponse);
                     }
                 }
