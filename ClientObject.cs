@@ -12,13 +12,13 @@ namespace Linki.Server
 {
     internal class ClientObject
     {
-        private TcpClient client;
-        private ServerObject serverObject;
-        private TcpListener clientListener;
-        private Queue<Request> requests = new Queue<Request>();
-        private Queue<Response> responses = new Queue<Response>();
-        private const string sqlConnectionString = "Server=(localdb)\\mssqllocaldb;Database=LinkiDB;Trusted_Connection=True;";
-        private SqlConnection databaseConnection = new SqlConnection(sqlConnectionString);
+        public TcpClient client { get; set; }
+        private ServerObject serverObject { get; set; }
+        private TcpListener clientListener { get; set; }
+        private Queue<Request> requests { get; set; } = new Queue<Request>();
+        private Queue<Response> responses { get; set; } = new Queue<Response>();
+        public static readonly string sqlConnectionString = new string("Server=(localdb)\\mssqllocaldb;Database=LinkiDB;Trusted_Connection=True;");
+        public SqlConnection databaseConnection { get; set; } = new SqlConnection(sqlConnectionString);
 
         public string connectionID { get; } = Guid.NewGuid().ToString();
 
@@ -117,59 +117,14 @@ namespace Linki.Server
 
         private async Task HandleRequests()
         {
+            RequestHandler requestHandler = new RequestHandler(this);
             while (true)
             {
                 if (requests.Count != 0)
                 {
                     Request request = requests.Dequeue();
-                    if(request is SignUpRequest signUpRequest)
-                    {
-                        bool isSingedUp;
-                        string statusMessage = "";
-
-                        string sqlExpression = "SELECT COUNT(Login) FROM Users WHERE Login = @login";
-                        SqlCommand command = new SqlCommand(sqlExpression, databaseConnection);
-                        command.Parameters.Add(new SqlParameter("@login", signUpRequest.Login));
-                        int loginCount = (int)(await command.ExecuteScalarAsync());
-                        if (loginCount > 0)
-                        {
-                            statusMessage += "- Логин уже занят\n";
-                        }
-
-                        sqlExpression = "SELECT COUNT(Email) FROM Users WHERE Email = @email";
-                        command = new SqlCommand(sqlExpression, databaseConnection);
-                        command.Parameters.Add(new SqlParameter("@email", signUpRequest.Email));
-                        int emailCount = (int)(await command.ExecuteScalarAsync());
-                        if (emailCount > 0)
-                            statusMessage += "- E-mail уже занят";
-
-                        SignUpResponse signUpResponse = new SignUpResponse();
-                        if (statusMessage != "")
-                        {
-                            isSingedUp = false;
-                        }
-                        else
-                        {
-                            sqlExpression = "INSERT INTO Users (Login, Password, Nickname, Email) values " +
-                                "(@login, @password, @nickname, @email)";
-                            command = new SqlCommand(sqlExpression, databaseConnection);
-                            command.Parameters.Add(new SqlParameter("@login", signUpRequest.Login));
-                            command.Parameters.Add(new SqlParameter("@password", signUpRequest.Password));
-                            command.Parameters.Add(new SqlParameter("@nickname", signUpRequest.Nickname));
-                            command.Parameters.Add(new SqlParameter("@email", signUpRequest.Email));
-                            
-                            // нет проверки на длину данных, ну да ладно
-                            await command.ExecuteNonQueryAsync();
-                            statusMessage = "Регистрация успешно завершена. Можете войти в аккаунт.";
-                            isSingedUp = true;
-                        }
-                        signUpResponse.StatusMessage = statusMessage;
-                        signUpResponse.isSignedUp = isSingedUp;
-                        responses.Enqueue(signUpResponse);
-                    }
+                    requestHandler.Handle(request);
                 }
-                else
-                    continue;
             }
         }
 
