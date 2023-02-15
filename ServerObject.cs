@@ -78,10 +78,11 @@ namespace Linki.Server
                 {
                     Console.WriteLine(ex.Message);
                 }
+                Thread.Sleep(10);
             }
         }
 
-        public async Task CheckClientObjectsConnectionAsync()
+        public async Task CheckClientObjectConnectionsAsync()
         {
             while (true)
             {
@@ -100,7 +101,7 @@ namespace Linki.Server
                     clientConnections.Remove(disconnection);
                 }
 
-                int waitSeconds = 60;
+                int waitSeconds = 2;
                 Thread.Sleep(waitSeconds * 1000);
             }
         }

@@ -112,6 +112,11 @@ namespace Linki.Server
 
                     }
                 }
+                else
+                {
+                    Thread.Sleep(10);
+                    continue;
+                }
             }
         }
 
@@ -125,6 +130,11 @@ namespace Linki.Server
                     Request request = requests.Dequeue();
                     requestHandler.Handle(request);
                 }
+                else
+                {
+                    Thread.Sleep(10);
+                    continue;
+                }
             }
         }
 
@@ -132,19 +142,25 @@ namespace Linki.Server
         {
             while (true)
             {
-                try
+                if (responses.Count != 0)
                 {
-                    if (responses.Count != 0)
+                    try
                     {
                         Response response = responses.Dequeue();
                         string jsonResponse = QueryJsonConverter.SerializeQueryMessage(response) + "\n";
                         byte[] data = Encoding.UTF8.GetBytes(jsonResponse);
                         await client.Client.SendAsync(data, SocketFlags.None);
+
+                    }
+                    catch(Exception ex)
+                    {
+
                     }
                 }
-                catch (Exception ex)
+                else
                 {
-
+                    Thread.Sleep(10);
+                    continue;
                 }
             }
         }
